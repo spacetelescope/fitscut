@@ -1,0 +1,49 @@
+Rick White -- Mon Jul 26 13:43:41 EDT 2010
+
+Installing the routines on hladev (once Niall or Lee has already
+built cfitsio).
+
+Note that it is necessary to build these programs on hladev1 because
+hladev2 does not have the necessary jpg and png libraries.  On the
+other hand, the gdb program exists only on hladev2 for some reason,
+so if you need to do debugging then you should run it there.
+
+First build and install libwcs (in the libwcs/ directory):
+
+make
+install -d /hladev/hladocs/hla/include/libwcs
+install *.h /hladev/hladocs/hla/include/libwcs
+install libwcs.a /hladev/hladocs/hla/lib
+
+Configure and install fitscut:
+
+setenv CFLAGS "-I/hladev/hladocs/hla/include"
+setenv CPPFLAGS "-I/hladev/hladocs/hla/include"
+setenv LDFLAGS "-L/hladev/hladocs/hla/lib"
+./configure --prefix=/hladev/hladocs/hla
+make
+make install
+
+This ought to install fitscut in the /usr/local/hla/bin directory...
+
+Optimized version:
+
+setenv CFLAGS "-O3 -I/hladev/hladocs/hla/include"
+setenv CPPFLAGS "-O3 -I/hladev/hladocs/hla/include"
+setenv LDFLAGS "-O3 -L/hladev/hladocs/hla/lib"
+./configure --prefix=/hladev/hladocs/hla
+make
+make install
+
+Debug version: (NOT INSTALLED)
+
+setenv CFLAGS "-g -I/hladev/hladocs/hla/include"
+setenv CPPFLAGS "-g -I/hladev/hladocs/hla/include"
+setenv LDFLAGS "-g -L/hladev/hladocs/hla/lib"
+./configure --prefix=/hladev/hladocs/hla
+/bin/rm *.o
+make
+mv fitscut fitscut.debug
+/bin/rm *.o
+
+THEN REBUILD THE NORMAL VERSION (OPTIMIZED OR NOT)

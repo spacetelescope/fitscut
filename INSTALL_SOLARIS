@@ -1,0 +1,22 @@
+Rick White -- Mon Jun 12 16:39:58 EDT 2006
+
+To install using the routines under Solaris (working on archdev at
+the moment), do this:
+
+setenv CFLAGS "-I/usr/local/gnome-1.4/include -I/usr/local/include"
+setenv CPPFLAGS "-I/usr/local/gnome-1.4/include -I/usr/local/include"
+setenv LDFLAGS "-L/usr/local/gnome-1.4/lib -L/usr/local/lib"
+./configure --prefix=/home/rlw
+make install
+
+This ought to install fitscut in the /home/rlw/bin directory...
+
+I'm omitting the wcstools libraries at the moment.  They are supposed to
+be optional and I didn't find them in a quick search.
+
+# setenv CFLAGS "-I/usr/local/include -I/usr/local/wcstools"
+# setenv CPPFLAGS "-I/usr/local/include -I/usr/local/wcstools"
+# setenv LDFLAGS "-L/usr/local/lib -L/usr/local/wcstools/libwcs"
+
+I have not figured out where these libraries might be on stdatu.  This
+works on archdev.

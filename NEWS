@@ -1,0 +1,26 @@
+fitscut 1.4.2
+=============
+
+        * Fix error checking of input files.
+        * Allow specifying symbolic links as input files.
+
+fitscut 1.4.1
+=============
+
+This version only includes changes to the packaging and build
+system.
+        * include .spec file for generating RPMSs
+        * look for fitsio.h with cfitsio prefix and without.
+
+fitscut 1.4.0
+=============
+
+This is the first version to be released with a GPL license.  New
+features include:
+
+        * asinh scaling
+        * autoscale-{min,max} options
+        * ability to explicitly request linear scaling
+        * GPL license
+        * Improved --help text
+        * Improved verbose messages

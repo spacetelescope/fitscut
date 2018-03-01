@@ -1,0 +1,153 @@
+2004-07-27  William Jon McCann  <mccann@jhu.edu>
+
+	* NEWS: 
+	* revision.h (REVDATE): 
+	* configure.in: Update for release.
+
+	* fitscut.c (check_input, main): Interpret warnings as errors.
+	(check_output): Exit on error condition.
+	
+	* file_check.c (check_input_file): Don't issue a warning when the
+	input file is a symbolic link.
+
+2004-05-11  William Jon McCann  <mccann@jhu.edu>
+
+	* NEWS: Updated.
+
+	* revision.h (REVDATE): Bump version for release.
+
+	* configure.in: 
+	* extract.c: 
+	* fitscut.c: 
+	* resize.c: 
+	* output_fits.c:
+	Look for fitsio.h with cfitsio prefix and without.
+
+	* fitscut.spec.in:
+	* Makefile.am (EXTRA_DIST): 
+	* configure.in: Add spec file.
+
+2004-05-10  William Jon McCann  <mccann@jhu.edu>
+
+	* autogen.sh: New file.
+
+	* revision.h: 
+	* configure.in: 
+	* NEWS: 
+	* README: Updated for 1.4.0 release.
+
+2004-04-30  William Jon McCann  <mccann@jhu.edu>
+
+	* image_scale.[ch] (asinh_image2): Removed function.
+
+	* fitscut.c (scale_image): Fix bug from missing break statements.
+
+	* output_jpg.c (jpg_write_simple_image): 
+	* output_png.c (png_write_simple_image): Align verbose messages.
+
+	* image_scale.c (autoscale_channel): Require higher verbosity for
+	autoscale range messages.
+
+	* histogram.c (compute_histogram): Require higher verbosity for
+	histogram related messages.
+
+	* fitscut.c (fitscut_initialize): Use 0,100 as defaults for autoscale.
+	(main): Set scale mode to autoscale when autoscale-{min,max} are set.
+
+	* Makefile.am (check): Use unambiguous autoscale option.
+
+	* fitscut.c (main): Get autoscale-{min,max} from commandline.
+
+2004-04-29  William Jon McCann  <mccann@jhu.edu>
+
+	* image_scale.c (autoscale_channel): Use autoscale low/high per channel.
+
+	* fitscut.c (show_usage): Separate sections.  Add some help text.
+
+	* fitscut.h: Replace defines with enums.
+
+	* output_fits.c (write_to_fits): Remove SCALE_NONE
+
+2004-04-22  William Jon McCann  <mccann@jhu.edu>
+
+	* extract.c (extract_fits): Fix bug introduced by inappropriately
+	initializing variables in a loop.
+
+	* image_scale.c (autoscale_image): Set autoscale_performed flag.
+	(asinh_image2, asinh_image): Rewrite algorithm so as not use any
+	additional memory.  Try to hook up user min/max values.
+
+	* fitscut.c (fitscut_initialize): Use TRUE/FALSE where possible.
+
+	* fitscut.h: Ensure TRUE/FALSE are defined.  Add
+	autoscale_performed flag to structure.
+
+	* Makefile.am (check): Fix test names.  Add asinh test.
+
+2004-04-21  William Jon McCann  <mccann@jhu.edu>
+
+	* fitscut.c (fitscut_message, align_image, render_compass) 
+	(write_image, check_input): 
+	* wcs_align.c (wcs_initialize_channel, wcs_align_first) 
+	(wcs_remap_channel): 
+	* resize.c (resize_image_sample_reduce) 
+	(resize_image_sample_enlarge): 
+	* output_png.c (png_write_rgb_image, png_write_simple_image) 
+	(write_to_png): 
+	* output_jpg.c (jpg_write_rgb_image, jpg_write_simple_image) 
+	(write_to_jpg): 
+	* output_fits.c (write_to_fits): 
+	* image_scale.c (autoscale_channel, autoscale_image, log_image) 
+	(sqrt_image, asinh_image, scan_min_max, mult_image, rate_image): 
+	* histogram.c (compute_histogram): 
+	* extract.c (extract_fits, cutout_alloc, fits_get_exposure_time): 
+	* draw.c (draw_wcs_compass): 
+	Use new fitscut_message function.
+
+	* test.fits:
+	* Makefile.am (check): Change size of test file.
+
+2004-04-21  William Jon McCann  <mccann@jhu.edu>
+
+	* AUTHORS:
+	* NEWS:
+	* Makefile.am: New file.
+
+	* colormap.[ch]:
+	* draw.[ch]:
+	* extract.[ch]:
+	* file_check.[ch]:
+	* fitscut.[ch]:
+	* getopt1.[ch]:
+	* getopt.[ch]:
+	* histogram.[ch]:
+	* image_scale.[ch]:
+	* output_fits.[ch]:
+	* output_jpg.[ch]:
+	* output_png.[ch]:
+	* resize.[ch]:
+	* util.[ch]:
+	* wcs_align.[ch]: Add GPL license text.  Change
+	indentation to 8 chars.  Add spacing around
+	functions and operators.  Fix compiler warnings.
+
+	* configure.in: Add warnings.  Define version
+	here instead of in revision.h.  Produce config.h.
+	Report an error when required header is not found.
+	Add WCS_LIBS variable.
+
+	* THANKS:
+	* TODO:
+	* README: Updated.
+
+	* COPYING: Added GPL license.
+
+2003-11-25  William Jon McCann  <mccann@jhu.edu>
+
+	* revision.h: Increment version for test release.
+
+2003-11-24  William Jon McCann  <mccann@jhu.edu>
+
+	* fitscut.[ch]: 
+	* image_scale.[ch]: added asinh scaling.
+

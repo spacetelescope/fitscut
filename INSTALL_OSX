@@ -1,0 +1,45 @@
+Rick White -- Thu Jan 14 23:18:00 EST 2016
+
+To install into my home bin directory using the anaconda libraries, do this:
+
+First install the libwcs files in my private directories:
+
+cd ../libwcs
+make
+install -d ~/include/libwcs
+install *.h ~/include/libwcs
+install -d ~/lib
+install libwcs.a ~/lib
+back
+
+Then build fitscut:
+
+setenv CFLAGS "-I /Users/rlw/anaconda/include -I/Users/rlw/include"
+setenv CPPFLAGS "-I /Users/rlw/anaconda/include -I/Users/rlw/include"
+setenv LDFLAGS "-L/Users/rlw/anaconda/lib -L/Users/rlw/lib"
+./configure --prefix=/Users/rlw
+make
+make test
+make install
+
+This ought to install fitscut in the ~/bin directory...
+
+Debug version: (using the ../libwcs version, which is linked with debug on)
+
+setenv CFLAGS "-g -I.."
+setenv CPPFLAGS "-g -I.."
+setenv LDFLAGS "-g -L../libwcs"
+./configure --prefix=/Users/rlw
+make
+make test
+make install
+
+Optimized version:
+
+setenv CFLAGS "-O3 -I/Users/rlw/include"
+setenv CPPFLAGS "-O3 -I/Users/rlw/include"
+setenv LDFLAGS "-O3 -L/Users/rlw/lib"
+./configure --prefix=/Users/rlw
+make
+make test
+make install
