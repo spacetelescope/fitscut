@@ -56,8 +56,7 @@ This usually consists of:
   [ Become root if necessary ]
   % make install                                  # install fitscut
 
-Contact
-=======
 
-Please send all comments and bug reports by electronic mail to:
-William Jon McCann <mccann@jhu.edu>
+-----
+Copyright (C) 2001 William Jon McCann
+
