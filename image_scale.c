@@ -26,7 +26,6 @@
 #endif
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <pwd.h>
@@ -49,307 +48,79 @@ extern char *malloc ();
 #  include <unistd.h>
 #endif
 
-#ifdef  HAVE_STRING_H
-#include <string.h>
-#else
-#include <strings.h>
-#endif
-
-#ifdef HAVE_CFITSIO_FITSIO_H
-#include <cfitsio/fitsio.h> 
-#else
-#include <fitsio.h>
-#endif
-
 #include "fitscut.h"
 #include "image_scale.h"
 #include "histogram.h"
 #include "extract.h"
 
 void
-autoscale_image (FitsCutImage *Image)
-{
-        int k;
-
-        if (Image->autoscale_performed) return;
-
-        for (k = 0; k < Image->channels; k++) {
-                if (Image->data[k] == NULL) 
-                        continue;
-                switch(Image->output_scale_mode) {
-                    case SCALE_MODE_AUTO:
-                        autoscale_channel (Image, k);
-                        break;
-                    case SCALE_MODE_FULL:
-                        autoscale_full_channel (Image, k);
-                        break;
-                    default:
-                        break;
-                }
-        }
-        Image->autoscale_performed = TRUE;
-}
-
-static void
-autoscale_range_set (FitsCutImage *Image, int k, float *arrayp, int npix)
-{
-        float *hist; /* Histogram */
-        float inmin, inmax;
-        int num_bins = NBINS;
-        int ll, hh, mm, count;
-        long cutoff_low, cutoff_high, cutoff_median;
-        double amin, amax, median;
-        long pixcount;
-        float bad_data_value;
-
-        amin = Image->data_min[k];
-        amax = Image->data_max[k];
-        bad_data_value = Image->bad_data_value[k];
-        /* get histogram */
-        hist = compute_histogram (arrayp, num_bins, amin, amax, npix, bad_data_value, &pixcount, &inmin, &inmax);
-
-        /* find the upper cutoff */
-        cutoff_high = (pixcount * (100.0 - Image->autoscale_percent_high[k]) / 100.0);
-        for (hh = num_bins, count = 0; hh >= 0; hh--) {
-                count += hist[hh];
-                if (count > cutoff_high)
-                        break;
-        }
-
-        /* calculate lower cutoff */
-        cutoff_low = (pixcount * Image->autoscale_percent_low[k] / 100.0);
-        for (ll = 0, count = 0; ll <= num_bins; ll++) {
-                count += hist[ll];
-                if (count > cutoff_low)
-                        break;
-        }
-
-        /* find the median */
-        if (hh == ll) {
-            mm = ll;
-        } else {
-            /* continue from lower count */
-            cutoff_median = pixcount * 0.5;
-            mm = ll;
-            while (count <= cutoff_median) {
-                mm++;
-                if (mm > num_bins) break;
-                count += hist[mm];
-            }
-        }
-
-        /* minimize round-off errors in case abs(amax) << abs(amin) */
-        if (ll == num_bins) {
-            Image->autoscale_min[k] = amax;
-        } else {
-            Image->autoscale_min[k] = (amax-amin) / (num_bins-1) * (ll-1) + amin;
-        }
-        if (hh == num_bins-1) {
-            Image->autoscale_max[k] = amax;
-        } else {
-            Image->autoscale_max[k] = (amax-amin) / (num_bins-1) * hh + amin;
-        }
-        median = (amax-amin) / (num_bins-1) * (mm-0.5) + amin;
-
-        if (ll+10 >= hh && inmin != inmax) {
-            /*
-             * Range was too big -- repeat with restricted range.
-             * This is often an indication of bad data in the image, so a
-             * warning is printed.
-             */
-            Image->data_min[k] = MAX(inmin, Image->autoscale_min[k]);
-            Image->data_max[k] = MIN(inmax, Image->autoscale_max[k]);
-            fitscut_message (1, "\tPossible bad data in channel %d - Iterating autoscale min: %e max: %e\n",
-                             k, Image->data_min[k], Image->data_max[k]);
-            free (hist);
-            autoscale_range_set(Image, k, arrayp, npix);
-            return;
-        }
-
-        /*
-         * Fix a common problem: when the image looks almost like pure noise
-         * (max-median ~= median-min), the stretch is too severe.
-         * In that case move the max value away from the median.
-         */
-        if (median + 5*(median-Image->autoscale_min[k]) > Image->autoscale_max[k]) {
-            fitscut_message (2, "\tautoscale before median corr min: %f max: %f ll: %d hh: %d\n", 
-                         Image->autoscale_min[k], Image->autoscale_max[k], ll, hh);
-            Image->autoscale_max[k] = median + 5*(median-Image->autoscale_min[k]);
-        }
-        fitscut_message (2, "\tautoscale min: %f max: %f ll: %d hh: %d\n", 
-                         Image->autoscale_min[k], Image->autoscale_max[k], ll, hh);
-        free (hist);
-}
-
-
-void
 autoscale_channel (FitsCutImage *Image, int k)
 {
-        long npix;
+        float *hist; /* Histogram */
+        int num_bins = NBINS;
+        int ll, hh, count;
+        long npix, cutoff_low, cutoff_high;
+        double amin, amax;
+        float *arrayp;
+        float half;
+
+        npix = Image->ncols[k] * Image->nrows[k];
 
         fitscut_message (1, "Autoscaling channel %d by histogram %.4f%% - %.4f%%\n", 
                          k, Image->autoscale_percent_low[k],
                          Image->autoscale_percent_high[k]);
 
-        npix = Image->ncols[k] * Image->nrows[k];
-        autoscale_range_set (Image, k, Image->data[k], npix);
+        if (Image->data[k] == NULL) 
+                return;
+        arrayp = Image->data[k];
+        amin = Image->data_min[k];
+        amax = Image->data_max[k];
+        /* get histogram */
+        hist = compute_histogram (arrayp, num_bins, amin, amax,
+                                  Image->nrows[k], Image->ncols[k]);
+
+        /* calculate cutoff */
+        half = (Image->autoscale_percent_low[k] == Image->autoscale_percent_high[k]) ? 0.5 : 1.0;
+        cutoff_low = (npix * Image->autoscale_percent_low[k] / 100.0) * half;
+        cutoff_high = (npix * (100.0 - Image->autoscale_percent_high[k]) / 100.0) * half;
+        for (ll = 0, count = 0; ll < num_bins; ll++) {
+                count += hist[ll];
+                if (count > cutoff_low)
+                        break;
+        }
+
+        for (hh = num_bins - 1, count = 0; hh >= 0; hh--) {
+                count += hist[hh];
+                if (count > cutoff_high)
+                        break;
+        }
+
+        Image->autoscale_min[k] = (amax-amin) / num_bins * ll + amin;
+        Image->autoscale_max[k] = (amax-amin) / num_bins * hh + amin;
+
+        fitscut_message (3, "\t\tautoscale min: %f max: %f ll: %d hh: %d\n", 
+                         Image->autoscale_min[k], Image->autoscale_max[k], ll, hh);
+
+        free (hist);
 }
 
-/* autoscaling using a sample of the full image
- * This produces the same lookup table for every cutout from an image
- * (useful for making tiles that match.) 
- */
-
 void
-autoscale_full_channel (FitsCutImage *Image, int k)
+autoscale_image (FitsCutImage *Image)
 {
-        long npix;
-        double amin, amax;
-        float *arrayp, val;
+        int k;
 
-        fitsfile *fptr;       /* pointer to the FITS file; defined in fitsio.h */
-        fitsfile *dqptr;
-        long nplanes;
-        int status, ydelta, i, nbad;
-        long naxes[2];
-        int rows_used = 0;
-        int cols_used = 0;
-        /* allow room for trailing dimensions */
-        long fpixel[7] = {1,1,1,1,1,1,1};
-        long lpixel[7] = {1,1,1,1,1,1,1};
-        long inc[7] = {1,1,1,1,1,1,1};
-        int anynull;
-        float nullval = NAN;
-        int nsample = NSAMPLE;
-        float minfrac;
-
-        int useBsoften;
-        double boffset, bsoften;
-
-        /*
-         * read a sample of rows from the image
-         * we've already read the cutout from this image, but need to open
-         * it again to read some scattered rows
-         */
-
-        status = 0;
-        fitscut_message (1, "Sampling FITS channel %d...\n", k);
-        if (fits_open_image (&fptr, Image->input_filename[k], READONLY, &status)) 
-                printerror (status);
-
-        /* get image dimensions */
-        if (fits_get_img_size (fptr, 2, naxes, &status))
-                printerror (status);
-
-        /* increase number of pixels to sample for very small fractions */
-        minfrac = 1 - Image->autoscale_percent_high[k]/100;
-        if (minfrac > Image->autoscale_percent_low[k]/100) {
-            minfrac = Image->autoscale_percent_low[k]/100;
+        for (k = 0; k < Image->channels; k++) {
+                if (Image->data[k] == NULL) 
+                        continue;
+                autoscale_channel (Image, k);
         }
-        if (minfrac*nsample < 20) {
-            nsample = 20/minfrac + 0.5;
-            fitscut_message (1, "Increasing nsample from %d to %d...\n", NSAMPLE, nsample);
-        }
-
-        /* number of rows to read to get approximately nsample pixels */
-        cols_used = naxes[0];
-        rows_used = nsample/cols_used;
-        if (rows_used < MINSAMPLEROWS) rows_used = MINSAMPLEROWS;
-        if (rows_used > naxes[1]) rows_used = naxes[1];
-        ydelta = naxes[1]/(rows_used+1);
-        if (ydelta <= 0) ydelta = 1;
-        arrayp = cutout_alloc (cols_used, rows_used, NAN);
-
-        fpixel[0] = 1;
-        fpixel[1] = ydelta;
-        inc[0] = 1;
-        inc[1] = ydelta;
-        lpixel[0] = naxes[0];
-        lpixel[1] = fpixel[1]+ydelta*(rows_used-1);
-
-        if (fitscut_read_subset (fptr, TFLOAT, fpixel, lpixel, inc,
-                &nullval, arrayp, &anynull, &status))
-            printerror (status);
-
-        /* get info for data quality flagging (if it is used) */
-        if (get_qual_info (&dqptr, &nplanes, &Image->badmin[k], &Image->badmax[k], &Image->bad_data_value[k],
-                fptr, Image->header[k], Image->header_cards[k],
-                Image->qext_set, Image->qext[k], Image->useBadpix,
-                &status))
-            printerror (status);
-
-        /* apply data quality flagging to zero bad pixels */
-
-        nbad = apply_qual (dqptr, nplanes, Image->badmin[k], Image->badmax[k], Image->bad_data_value[k],
-                fpixel, lpixel, inc,
-                arrayp, anynull, Image->qext_bad_value[k], &status);
-        if (status)
-            printerror (status);
-        if (nbad)
-            fitscut_message(2, "\tZeroed %d bad pixels\n", nbad);
-
-        /* invert asinh scaling using header parameters if requested */
-        fits_get_bsoften (Image, k, &useBsoften, &bsoften, &boffset);
-        if (useBsoften) {
-            invert_bsoften(bsoften, boffset, fpixel, lpixel, inc,
-                arrayp, Image->bad_data_value[k]);
-        }
-
-        if (fits_close_file (fptr, &status)) 
-            printerror (status);
-
-        if (dqptr != NULL) {
-            if (fits_close_file (dqptr, &status)) 
-                printerror (status);
-        }
-
-        fitscut_message (1, "Full autoscaling channel %d by histogram %.4f%% - %.4f%%\n", 
-                         k, Image->autoscale_percent_low[k],
-                         Image->autoscale_percent_high[k]);
-
-        npix = rows_used*cols_used;
-
-        /* get the min and max for the sample */
-        amin = FLT_MAX;
-        amax = -FLT_MAX;
-        /* initialize with first finite value */
-        for (i=0; i<npix; i++) {
-            val = arrayp[i];
-            if (finite(val) && val != Image->bad_data_value[k]) {
-                amax = val;
-                amin = val;
-                break;
-            }
-        }
-        for (i=i+1; i<npix; i++) {
-            val = arrayp[i];
-            if (finite(val) && val != Image->bad_data_value[k]) {
-                if (val>amax) {
-                    amax = val;
-                } else if (val<amin) {
-                    amin = val;
-                }
-            }
-        }
-        if (amin > amax) {
-            /* apparently the entire section is blank, use zeros for limits */
-            amin = 0.0;
-            amax = 0.0;
-        }
-        fitscut_message (2, "\twhole image min %f max %f\n", amin, amax);
-        /* use these max/min values for future scaling */
-        Image->data_max[k] = amax;
-        Image->data_min[k] = amin;
-
-        autoscale_range_set (Image, k, arrayp, npix);
-        free (arrayp);
+        Image->autoscale_performed = TRUE;
 }
 
 void
 histeq_image (FitsCutImage *Image)
 {
         float *hist;
-        float inmin, inmax;
         unsigned char *lut;
         unsigned char temp;
         float *linep;
@@ -358,9 +129,8 @@ histeq_image (FitsCutImage *Image)
         float binsize;
         int num_bins = NBINS;
         int k;
-        float bad_data_value;
 
-        long nrows, ncols, pixcount;
+        long nrows, ncols;
         double dmin, dmax;
         float *arrayp;
 
@@ -370,7 +140,6 @@ histeq_image (FitsCutImage *Image)
                 arrayp = Image->data[k];
                 dmin = Image->data_min[k];
                 dmax = Image->data_max[k];
-                bad_data_value = Image->bad_data_value[k];
                 nrows = Image->nrows[k];
                 ncols = Image->ncols[k];
 
@@ -378,11 +147,11 @@ histeq_image (FitsCutImage *Image)
 
                 /* This code is based on GIMP equalize */
 
-                hist = compute_histogram (arrayp, num_bins, dmin, dmax, nrows*ncols, bad_data_value, &pixcount, &inmin, &inmax);
+                hist = compute_histogram (arrayp, num_bins, dmin, dmax, nrows, ncols);
                 binsize = (dmax - dmin) / (num_bins - 1);
 
                 /* Build equalization LUT */
-                lut = eq_histogram (hist, num_bins, pixcount);
+                lut = eq_histogram (hist, num_bins, ncols, nrows);
 
                 /* Substitute */
                 linep  = arrayp;
@@ -414,14 +183,11 @@ double
 compute_hist_mode (FitsCutImage *Image, int k)
 {
         float *hist;
-        float inmin, inmax;
         float *arrayp;
         int num_bins = NBINS;
         double amin, amax;
         int i, max_bin = 0;
         float depth;
-        long pixcount;
-        float bad_data_value;
 
         if (Image->data[k] == NULL) 
                 return 0.0;
@@ -429,17 +195,16 @@ compute_hist_mode (FitsCutImage *Image, int k)
         arrayp = Image->data[k];
         amin = Image->data_min[k];
         amax = Image->data_max[k];
-        bad_data_value = Image->bad_data_value[k];
         /* get histogram */
-        hist = compute_histogram (arrayp, num_bins, amin, amax, Image->nrows[k]*Image->ncols[k], bad_data_value, &pixcount, &inmin, &inmax);
+        hist = compute_histogram (arrayp, num_bins, amin, amax, Image->nrows[k], Image->ncols[k]);
 
-        for (i = 0, depth = 0; i <= num_bins; i++) {
+        for (i = 0, depth = 0; i < num_bins; i++) {
                 if (hist[i] > depth) {
                         depth = hist[i];
                         max_bin = i;
                 }
         }
-        return (amax - amin) / (num_bins-1) * (max_bin-0.5) + amin;
+        return (amax - amin) / num_bins * max_bin + amin;
 }
 
 void
@@ -526,16 +291,15 @@ asinh_image (FitsCutImage *Image)
 {
         long    i;
         float   t;
-        double  minval[MAX_CHANNELS];
-        double  *user_maxval, *user_minval;
-        int     k, chancount;
+        double  minval;
+        double  user_maxval, user_minval;
+        int     k;
         float  *arrayp;
         float   nonlinearity = 3.0;
 
         double  weight;
         double *vals;
-        double  sum, maxval, maxval_scaled, data_max;
-        long blankcount = 0;
+        double  sum, maxval, maxval_scaled;
 
         vals = (double *) calloc (Image->channels, sizeof (double));
 
@@ -544,82 +308,54 @@ asinh_image (FitsCutImage *Image)
                 autoscale_image (Image);
 
         fitscut_message (1, "Scaling image (asinh)...\n");
-        user_maxval = (Image->user_max_set) ? Image->user_max : Image->autoscale_max;
-        user_minval = (Image->user_min_set) ? Image->user_min : Image->autoscale_min;
-        /*
-         * Use min value as the base level.  This handles the case where there is
-         * a large non-zero sky background (either positive or negative.)
-         */
-        for (k = 0; k < Image->channels; k++) {
-            minval[k] = user_minval[k];
-        }
 
-        for (i = 0; i < Image->nrowsref * Image->ncolsref; i++) {
+        for (i = 0; i < Image->nrows[0] * Image->ncols[0]; i++) {
                 maxval = 0.0;
                 sum    = 0.0;
-                chancount = 0;
                 for (k = 0; k < Image->channels; k++) {
-                        if (Image->data[k] == NULL) continue;
+                        if (Image->data[k] == NULL) 
+                                continue;
+
+                        minval = 0.0;
+                        user_maxval = (Image->user_max_set) ? Image->user_max[k] : Image->autoscale_max[k];
+                        user_minval = (Image->user_min_set) ? Image->user_min[k] : Image->autoscale_min[k];
                         arrayp = Image->data[k];
-                        if (finite(arrayp[i]) && arrayp[i]!=Image->bad_data_value[k]) {
-                            t = (arrayp[i] - minval[k]) / (user_maxval[k] - user_minval[k]);
-                            sum += t;
-                            if (t > maxval) maxval = t;
-                            vals[k] = t;
-                            chancount += 1;
-                        } else {
-                            /* mark blank pixels with zero */
-                            vals[k] = 0.0;
-                        }
+                        t = (arrayp[i] - minval) / (user_maxval - user_minval);
+                        vals[k] = t;
+                        sum += t;
+                        if (t > maxval)
+                                maxval = t;
                 }
-                if (chancount == 0) {
-                    blankcount++;
-                    weight = NAN;
-                } else if (sum != 0) {
-                    weight = asinh (sum * nonlinearity) / (nonlinearity * sum);
-                } else {
-                    weight = 1.0;
-                }
-                maxval_scaled = maxval * weight;
-                if (maxval_scaled > 1) weight /= maxval_scaled;
+
+                weight = asinh (sum * nonlinearity) / (nonlinearity * sum);
                 for (k = 0; k < Image->channels; k++) {
-                        if (Image->data[k] == NULL) continue;
+                        if (Image->data[k] == NULL) 
+                                continue;
+
                         arrayp = Image->data[k];
                         arrayp[i] = vals[k] * weight;
+                        maxval_scaled = maxval * weight;
+                        if (maxval_scaled > 1)
+                                arrayp[i] /= maxval_scaled;
                 }
-        }
 
-        fitscut_message (2, "Found %d blank pixels...\n", blankcount);
-
-        /* empirical mapping to get comparable contrast */
-
-        chancount = 0;
-        for (k = 0; k < Image->channels; k++) {
-            if (Image->data[k] != NULL) chancount++;
-        }
-        if (chancount >= 3) {
-            data_max = 0.33;
-        } else if (chancount == 2) {
-            data_max = 0.4;
-        } else {
-            data_max = 0.7;
         }
 
         for (k = 0; k < Image->channels; k++) {
-                Image->data_max[k] = data_max;
-                Image->data_min[k] = 0.0;
-                Image->user_max[k] = data_max;
-                Image->user_min[k] = 0.0;
-                Image->autoscale_max[k] = data_max;
-                Image->autoscale_min[k] = 0.0;
+                /* FIXME: these are bogus */
+                Image->data_max[k] = 1.0;
+                Image->data_min[k] = 0; /*Image->autoscale_min[k];*/
+                Image->user_max[k] = 1.0;
+                Image->user_min[k] = 0; /*Image->autoscale_min[k];*/
         }        
+
         free (vals);
 }
 
 void
 scan_min_max (FitsCutImage *Image)
 {
-        long i, npix;
+        long i;
         float fmaxval = FLT_MAX;
         float val;
         int k;
@@ -636,31 +372,12 @@ scan_min_max (FitsCutImage *Image)
                 arrayp = Image->data[k];
 
                 fitscut_message (2, "Scanning channel %d...", k);
-
-                /* initialize with first finite value */
-                npix = Image->nrows[k] * Image->ncols[k];
-                for (i=0; i<npix; i++) {
-                    val = arrayp[i];
-                    if (finite(val) && val != Image->bad_data_value[k]) {
-                        dmax = val;
-                        dmin = val;
-                        break;
-                    }
-                }
-                for (i=i+1; i<npix; i++) {
-                    val = arrayp[i];
-                    if (finite(val) && val != Image->bad_data_value[k]) {
-                        if (val>dmax) {
-                            dmax = val;
-                        } else if (val<dmin) {
-                            dmin = val;
-                        }
-                    }
-                }
-                if (dmin > dmax) {
-                    /* apparently the entire section is blank, use zeros for limits */
-                    dmin = 0.0;
-                    dmax = 0.0;
+                for (i = 0; i < Image->nrows[k] * Image->ncols[k]; i++) {
+                        val = arrayp[i];
+                        if (val > dmax)
+                                dmax = val;
+                        if (val < dmin)
+                                dmin = val;
                 }
                 Image->data_min[k] = dmin;
                 Image->data_max[k] = dmax;
@@ -738,7 +455,7 @@ rate_image (FitsCutImage *Image)
                 if (Image->data[k] == NULL) 
                         continue;    
                 /* get the exposure time and populate the user_scale_factor field */
-                exptime = fits_get_exposure_time (Image->header[k], Image->header_cards[k]);
+                exptime = fits_get_exposure_time (Image->header[k], Image->header_cards[0]);
                 if (exptime > 0) {
                         factor = 1.0 / exptime;
                         Image->user_scale_factor[k] = factor;
@@ -750,3 +467,4 @@ rate_image (FitsCutImage *Image)
         }
         mult_image (Image);
 }
+

@@ -18,9 +18,8 @@
  * $Id: image_scale.h,v 1.9 2004/04/30 18:28:12 mccannwj Exp $
  */
 
-void autoscale_image   (FitsCutImage *);
 void autoscale_channel (FitsCutImage *, int);
-void autoscale_full_channel (FitsCutImage *, int);
+void autoscale_image   (FitsCutImage *);
 void histeq_image      (FitsCutImage *);
 void log_image         (FitsCutImage *);
 void sqrt_image        (FitsCutImage *);

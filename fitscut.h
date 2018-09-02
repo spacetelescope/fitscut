@@ -69,11 +69,6 @@ typedef RETSIGTYPE (*sig_type) OF((int));
 #define DEL     127
 #define ICSIZE  100
 
-/* NAN is already defined in C99 */
-#ifndef NAN
-#define NAN (0.0/0.0)
-#endif
-
 #ifndef TRUE
 #define TRUE (1==1)
 #endif 	/* TRUE */
@@ -90,7 +85,7 @@ typedef RETSIGTYPE (*sig_type) OF((int));
 #define tolow(c)  (isupper(c) ? (c)-'A'+'a' : (c)) /* force to lower case */
 
 #define WARN(msg) {if (!quiet) fprintf msg ; \
-           if (exit_code == OK) exit_code = WARNING;}
+		   if (exit_code == OK) exit_code = WARNING;}
 
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 #define MAX(X,Y) ((X) < (Y) ? (Y) : (X))
@@ -98,9 +93,7 @@ typedef RETSIGTYPE (*sig_type) OF((int));
 typedef enum {
         OUTPUT_FITS = 0,
         OUTPUT_PNG,
-        OUTPUT_JPG,
-        OUTPUT_JSON,
-        OUTPUT_RANGE
+        OUTPUT_JPG
 } FitscutOutputFormat;
 
 typedef enum {
@@ -116,7 +109,6 @@ typedef enum {
 typedef enum {
         SCALE_MODE_MINMAX = 0,
         SCALE_MODE_AUTO,
-        SCALE_MODE_FULL,
         SCALE_MODE_USER
 } FitscutScaleMode;
 
@@ -132,7 +124,7 @@ typedef enum {
 
 typedef enum {
         ALIGN_NONE = 0,
-        ALIGN_REF,
+        ALIGN_FIRST,
         ALIGN_NORTH,
         ALIGN_USER_WCS
 } FitscutAlignType;
@@ -142,9 +134,7 @@ void       do_exit         (int);
 void       fitscut_error   (char *);
 void       fitscut_message (int level, const char *format, ...);
 
-#define NBINS 50000
-#define NSAMPLE 250000
-#define MINSAMPLEROWS 10
+#define NBINS 10000
 
 extern int foreground;            /* set if program run in foreground */
 extern int force;        /* don't ask questions, overwrite (-f) */
@@ -164,21 +154,13 @@ typedef struct fitscut_image {
         int output_scale_mode;
         int output_alignment;
         int output_compass;
-        int output_marker;
         int output_invert;
-        int output_add_blurb;
-        int jpeg_quality;
-        float output_zoom[MAX_CHANNELS];
-        int output_size;
+        float output_zoom;
         char *input_filename[MAX_CHANNELS];
-        char *input_blurbfile;
         int input_datatype[MAX_CHANNELS];
-        int input_wcscoords[MAX_CHANNELS];
-        int input_x_corner[MAX_CHANNELS], input_y_corner[MAX_CHANNELS];
-        double input_x[MAX_CHANNELS], input_y[MAX_CHANNELS];
         char *output_filename;
         int channels;
-        double x0[MAX_CHANNELS], y0[MAX_CHANNELS];
+        long x0[MAX_CHANNELS], y0[MAX_CHANNELS], xc[MAX_CHANNELS], yc[MAX_CHANNELS];
         long ncols[MAX_CHANNELS], nrows[MAX_CHANNELS];
         double user_min[MAX_CHANNELS];
         int user_min_set;
@@ -186,14 +168,6 @@ typedef struct fitscut_image {
         int user_max_set;
         double user_scale_factor[MAX_CHANNELS];
         int user_scale_factor_set;
-        int qext[MAX_CHANNELS];
-        int qext_set;
-        int qext_bad_value[MAX_CHANNELS];
-        int useBadpix;
-        int useBsoften;
-        float bad_data_value[MAX_CHANNELS];
-        float badmin[MAX_CHANNELS];
-        float badmax[MAX_CHANNELS];
         double autoscale_percent_low[MAX_CHANNELS];
         double autoscale_percent_high[MAX_CHANNELS];
         double autoscale_min[MAX_CHANNELS], autoscale_max[MAX_CHANNELS];
@@ -203,11 +177,7 @@ typedef struct fitscut_image {
         float *data[MAX_CHANNELS];
         char *header[MAX_CHANNELS];
         int header_cards[MAX_CHANNELS];
+#ifdef HAVE_LIBWCS
         struct WorldCoor *wcs[MAX_CHANNELS];
-        /* reference coordinates for resampling image */
-        char *reference_filename;
-        struct WorldCoor *wcsref;
-        double x0ref, y0ref;
-        double output_zoomref;
-        long ncolsref, nrowsref;
+#endif
 } FitsCutImage;

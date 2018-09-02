@@ -23,6 +23,5 @@ typedef struct {
 } drawPoint, *drawPointPtr;
 
 void draw_wcs_compass (FitsCutImage *,float,float);
-void draw_center_marker (FitsCutImage *);
 void draw_line (FitsCutImage *, int, int, int, int, int, int);
 void draw_filled_polygon (FitsCutImage *, int, drawPointPtr, int, int);

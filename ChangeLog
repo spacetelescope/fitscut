@@ -1,3 +1,27 @@
+2006-10-31  William Jon McCann  <mccannwj@acsnb11.pha.jhu.edu>
+
+	* revision.h (REVDATE): 
+	* configure.in: 
+	* NEWS: Update for 1.4.4 release.
+
+	* output_png.c (write_to_png):
+	Change png_write_destroy to png_destroy_write_struct.
+
+2006-04-17  William Jon McCann  <mccann@jhu.edu>
+
+	* Makefile.am (check): Use $(top_srcdir) in tests.
+
+	* revision.h (REVDATE): 
+	* NEWS: 
+	* configure.in: Update for 1.4.3 release.
+
+2006-04-17  William Jon McCann  <mccann@jhu.edu>
+
+	* .cvsignore: New file.
+
+	* resize.c (resize_image_sample_reduce): Workaround a
+	gcc compiler bug by not casting the results of floor.
+
 2004-07-27  William Jon McCann  <mccann@jhu.edu>
 
 	* NEWS: 

@@ -238,43 +238,25 @@ check_output_file (char *ofname, char *ifname)
 int
 check_input_file (char *iname)
 {
-char tmpname[1024];
-int i, ltmpname;
-
-        if (strlen(iname) >= sizeof(tmpname)) {
-                WARN ((stderr, "%s: filename is >= 1024 characters long\n", progname));
-        }
-        (void) strncpy(tmpname, iname, sizeof(tmpname) - 1);
-        tmpname[sizeof(tmpname) - 1] = '\0';
-
-        /* Omit any extension that was specified */
-        ltmpname = strlen(tmpname);
-        for (i=0; i<ltmpname; i++) {
-            if (tmpname[i] == '[') {
-                tmpname[i] = '\0';
-                break;
-            }
-        }
 
         /* Check if the input file is present, set globals ifname and istat: */
-        if (get_istat (tmpname, &istat) != OK) {
+        if (get_istat (iname, &istat) != OK)
                 return ERROR;
-        }
 
         /* If the input name is that of a directory ignore: */
         if (S_ISDIR (istat.st_mode)) {
-                WARN ((stderr, "%s: %s is a directory -- ignored\n", progname, tmpname));
+                WARN ((stderr, "%s: %s is a directory -- ignored\n", progname, iname));
                 return WARNING;
         }
         if (!S_ISREG (istat.st_mode) && !S_ISLNK (istat.st_mode)) {
                 WARN ((stderr,
                        "%s: %s is not a directory, symbolic link, or regular file - ignored\n",
-                      progname, tmpname));
+                      progname, iname));
                 return WARNING;
         }
         if (istat.st_nlink > 1 && !to_stdout && !force) {
                 WARN ((stderr, "%s: %s has %d other link%c\n",
-                       progname, tmpname,
+                       progname, iname,
                        (int)istat.st_nlink - 1, istat.st_nlink > 2 ? 's' : ' '));
                 return WARNING;
         }

@@ -1,3 +1,13 @@
+fitscut 1.4.4
+=============
+
+        * Fix for libpng ABI change
+
+fitscut 1.4.3
+=============
+
+        * Work-around a GCC compiler bug.
+
 fitscut 1.4.2
 =============
 

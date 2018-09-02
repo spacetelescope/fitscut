@@ -1,6 +1,6 @@
 Summary: A tool for making cutouts and color images from FITS files
 Name: fitscut
-Version: 1.4.2
+Version: 1.4.4
 Release: 1
 License: GPL
 Group: Applications/Multimedia

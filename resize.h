@@ -18,11 +18,8 @@
  * $Id: resize.h,v 1.3 2004/04/21 20:13:10 mccannwj Exp $
  */
 
-void exact_resize_image_channel (FitsCutImage *, int, int);
-void exact_resize_reference (FitsCutImage *, int);
-void interpolate_image (FitsCutImage *, FitsCutImage *, int, int);
-
-void get_zoom_size_channel (int ncols, int nrows, float zoom_factor, int output_size,
-	   int *pixfac, int *zoomcols, int *zoomrows, int *doshrink);
-void reduce_array (float *input, float *output, int orig_width, int orig_height, int pixfac, float bad_data_value);
-void enlarge_array (float *input, float *output, int orig_width, int orig_height, int pixfac);
+void resize_image_channel        (FitsCutImage *, int, int, int);
+void resize_image_sample_enlarge (FitsCutImage *, FitsCutImage *, int);
+void resize_image_sample_reduce  (FitsCutImage *, FitsCutImage *, int);
+void image_get_row (FitsCutImage *, int, int, int, int, float*, int);
+void image_set_row (FitsCutImage *, int, int, int, int, float*);

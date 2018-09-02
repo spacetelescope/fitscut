@@ -18,16 +18,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * $Id: resize.c,v 1.9 2004/05/11 22:05:06 mccannwj Exp $
- *
- * Extensively modified 2006 October 11 by R. White (including
- * both interface and algorithm changes)
- * Added exact_resize_image_channel, RLW, 2007 March 6
- * Skip zero pixels in resize_image_channel_reduce, RLW, 2008 January 9
+ * $Id: resize.c,v 1.10 2006/04/17 14:43:21 mccannwj Exp $
  */
-
-/* make lround work ok with old gcc on linux */
-#define _ISOC99_SOURCE
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -46,7 +38,7 @@
 #else
 #include <strings.h>
 #endif
-
+                                                                                
 #ifdef HAVE_CFITSIO_FITSIO_H
 #include <cfitsio/fitsio.h> 
 #else
@@ -61,253 +53,234 @@
 #define DMALLOC_FUNC_CHECK 1
 #endif
 
-/* get the size for (possibly intermediate) integral zoom scaling of the image */
-
 void
-get_zoom_size_channel (int ncols, int nrows, float zoom_factor, int output_size,
-		int *pixfac, int *zoomcols, int *zoomrows, int *doshrink)
+resize_image_channel (FitsCutImage *srcImagePtr, int k, int width, int height)
 {
-int maxsize;
+        FitsCutImage destImage;
+        float xfactor, yfactor;
 
-	if (output_size > 0) {
+        xfactor = width / srcImagePtr->ncols[k];
+        yfactor = height / srcImagePtr->nrows[k];
+        destImage.ncols[k] = width;
+        destImage.nrows[k] = height;
 
-		/* fixed output size */
+        destImage.x0[k] = srcImagePtr->x0[k] * xfactor;
+        destImage.y0[k] = srcImagePtr->y0[k] * yfactor;
 
-		maxsize = (ncols > nrows) ? ncols : nrows;
-		*pixfac = maxsize/output_size;
-		if (*pixfac > 1) {
-			*zoomcols = (ncols-1) / (*pixfac) + 1;
-			if (*zoomcols<1) *zoomcols = 1;
-			*zoomrows = (nrows-1) / (*pixfac) + 1;
-			if (*zoomrows<1) *zoomrows = 1;
-			*doshrink = 1;
-		} else {
-			/* no rebinning if output is larger than input */
-			*pixfac = 1;
-			*zoomcols = ncols;
-			*zoomrows = nrows;
-			*doshrink = 0;
-		}
-	} else {
-		if (zoom_factor <=0 || zoom_factor == 1) {
-			/* no zoom */
-			*pixfac = 1;
-			*zoomcols = ncols;
-			*zoomrows = nrows;
-			*doshrink = 0;
-		} else if (zoom_factor > 1) {
-			/* zoom expanding */
-			*pixfac = lround(zoom_factor);
-			*zoomcols = ncols * (*pixfac);
-			*zoomrows = nrows * (*pixfac);
-			*doshrink = 0;
-		} else {
-			/* zoom shrinking */
-			*pixfac = lround(1./zoom_factor);
-			*zoomcols = (ncols-1) / (*pixfac) + 1;
-			if (*zoomcols<1) *zoomcols = 1;
-			*zoomrows = (nrows-1) / (*pixfac) + 1;
-			if (*zoomrows<1) *zoomrows = 1;
-			*doshrink = 1;
-		}
-	}
+        destImage.data[k] = (float *) malloc (width * height * sizeof (float));
+        if (xfactor > 1) {
+                resize_image_sample_enlarge (srcImagePtr, &destImage, k);
+        } else {
+                resize_image_sample_reduce (srcImagePtr, &destImage, k);
+        }
+        free (srcImagePtr->data[k]);
+        srcImagePtr->data[k] = destImage.data[k];
+        destImage.data[k] = NULL;
+
+        srcImagePtr->ncols[k] = width;
+        srcImagePtr->nrows[k] = height;
+        srcImagePtr->x0[k] = destImage.x0[k];
+        srcImagePtr->y0[k] = destImage.y0[k];
 }
 
 void
-exact_resize_image_channel (FitsCutImage *srcImagePtr, int k, int output_size)
+resize_image_sample_reduce (FitsCutImage *srcImagePtr,
+                            FitsCutImage *destImagePtr, 
+                            int k)
 {
-	FitsCutImage destImage;
-	int orig_width, orig_height, maxsize;
+        int *x_dest_offsets;
+        int *y_dest_offsets;
+        int *line_weights;
+        float *src;
+        float *dest;
+        double tmpval;
+        int width, height, orig_width, orig_height;
+        int last_dest_y;
+        int row_bytes;
+        int x, y;
+        char bytes;
 
-	orig_width = srcImagePtr->ncols[k];
-	orig_height = srcImagePtr->nrows[k];
-	maxsize = (orig_width > orig_height) ? orig_width : orig_height;
+        orig_width = srcImagePtr->ncols[k];
+        orig_height = srcImagePtr->nrows[k];
 
-	/* we're done if size matches */
-	if (maxsize == output_size) return;
+        width = destImagePtr->ncols[k];
+        height = destImagePtr->nrows[k];
 
-	/* use simple interpolation to get desired size */
-	interpolate_image (srcImagePtr, &destImage, k, output_size);
-	free (srcImagePtr->data[k]);
-	srcImagePtr->data[k] = destImage.data[k];
-	destImage.data[k] = NULL;
-	srcImagePtr->ncols[k] = destImage.ncols[k];
-	srcImagePtr->nrows[k] = destImage.nrows[k];
-	srcImagePtr->output_zoom[k] = destImage.output_zoom[k];
-}
+        fitscut_message (2, "\tresizing channel to x=%d y=%d from x=%d y=%d\n",
+                         width, height, orig_width, orig_height);
+        bytes = sizeof (float);
 
-/* modify reference header parameters for exact-resize scaling */
+        /*  the data pointers...  */
+        x_dest_offsets = (int *) malloc (orig_width * sizeof (int));
+        y_dest_offsets = (int *) malloc (orig_height * sizeof (int));
+        src  = (float *) calloc (orig_width * bytes, 1);
+        dest = (float *) calloc (width * bytes, 1);
+        line_weights = (int *) calloc (width * sizeof (int), 1);
+  
+        /*  pre-calc the scale tables  */
+        for (x = 0; x < orig_width; x++) {
+                double fl;
 
-void
-exact_resize_reference (FitsCutImage *Image, int output_size)
-{
-	int width, height, orig_width, orig_height, maxsize;
-	double zoom_factor, orig_zoom;
+                tmpval = (x * width) / (float)orig_width;
+                fl = floor (tmpval);
+                x_dest_offsets [x] = (int)fl;
+        }
 
-	orig_width = Image->ncolsref;
-	orig_height = Image->nrowsref;
-	orig_zoom = Image->output_zoomref;
-	if (orig_zoom == 0) orig_zoom = 1.0;
+        for (y = 0; y < orig_height; y++) {
+                double fl;
 
-	if (orig_width > orig_height) {
-		maxsize = orig_width;
-		width = output_size;
-		zoom_factor = ((double) width)/orig_width;
-		height = lround(zoom_factor*orig_height);
-		if (height<1) height = 1;
-	} else {
-		maxsize = orig_height;
-		height = output_size;
-		zoom_factor = ((double) height)/orig_height;
-		width = lround(zoom_factor*orig_width);
-		if (width<1) width = 1;
-	}
+                tmpval = (y * height) / (float)orig_height;
+                fl = floor (tmpval);
+                y_dest_offsets [y] = (int)fl;
+        }
+  
+        /*  do the scaling  */
+        last_dest_y = 0;
+        row_bytes = orig_width;
+        for (y = 0; y < orig_height; y++) {
+                if (last_dest_y != y_dest_offsets[y]) {
+                        /* only write row when y changes lines reached */
+                        for (x = 0; x < width ; x++) {
+                                dest[x] /= (float)line_weights[x];
+                        }
+                        image_set_row (destImagePtr, k, 0, last_dest_y, width, dest);
+                        memset (dest, 0, width * bytes);
+                        memset (line_weights, 0, width * bytes);
+                }
+                image_get_row (srcImagePtr, k, 0, y, orig_width, src, 1);
+                for (x = 0; x < row_bytes ; x++) {
+                        dest[x_dest_offsets[x]] += src[x];
+                        line_weights[x_dest_offsets[x]]++;
+                }
+                last_dest_y = y_dest_offsets[y];
+        }
+        /* only write row when y changes lines reached */
+        for (x = 0; x < width ; x++)
+                dest[x] /= (float)line_weights[x];
 
-	/* we're done if size matches */
-	if (maxsize == output_size) return;
+        image_set_row (destImagePtr, k, 0, last_dest_y, width, dest);
 
-	Image->output_zoomref = zoom_factor * orig_zoom;
-	Image->ncolsref = width;
-	Image->nrowsref = height;
-}
-
-void
-reduce_array (float *input, float *output, int orig_width, int orig_height, int pixfac, float bad_data_value)
-{
-	float *src;
-	float *dest;
-	int width, height;
-	int x, y, i, j, jmin, jmax;
-	int *count;
-
-	width = (orig_width-1)/pixfac + 1;
-	if (width<1) width = 1;
-	height = (orig_height-1)/pixfac + 1;
-	if (height<1) height = 1;
-
-	count = (int *) malloc (width * sizeof (int));
-
-	for (y=0; y<height; y++) {
-		dest = output + y*width;
-		for (x=0; x<width; x++) {
-			dest[x] = 0.0;
-			count[x] = 0;
-		}
-		jmin = pixfac*y;
-		jmax = jmin + pixfac;
-		if (jmax > orig_height) jmax = orig_height;
-		for (j=jmin; j<jmax; j++) {
-			src = input + j*orig_width;
-			for (i=0; i<orig_width; i++) {
-				/* ignore bad-value and NaN pixels, which are missing data */
-				if (src[i] != bad_data_value && isfinite(src[i])) {
-					dest[i/pixfac] += src[i];
-					count[i/pixfac] += 1;
-				}
-			}
-		}
-		for (x=0; x<width; x++) {
-			if (count[x] > 0) {
-				dest[x] /= count[x];
-			} else {
-				dest[x] = NAN;
-			}
-		}
-	}
-	free(count);
+        free (x_dest_offsets);
+        free (y_dest_offsets);
+        free (src);
+        free (dest);
 }
 
 void
-enlarge_array (float *input, float *output, int orig_width, int orig_height, int pixfac)
+resize_image_sample_enlarge (FitsCutImage *srcImagePtr,
+                             FitsCutImage *destImagePtr, 
+                             int k)
 {
-	float *src;
-	float *dest;
-	int width, height;
-	int x, y, j;
+        int *x_src_offsets;
+        int *y_src_offsets;
+        float *src;
+        float *dest;
+        int width, height, orig_width, orig_height;
+        int last_src_y;
+        int row_bytes;
+        int x, y;
+        char bytes;
 
-	width = orig_width*pixfac;
-	height = orig_height*pixfac;
+        orig_width = srcImagePtr->ncols[k];
+        orig_height = srcImagePtr->nrows[k];
 
-	for (j=0; j<orig_height; j++) {
-		src = input + j*orig_width;
-		for (y=pixfac*j; y<pixfac*(j+1); y++) {
-			dest = output + y*width;
-			for (x=0; x<width; x++) {
-				dest[x] = src[x/pixfac];
-			}
-		}
-	}
+        width = destImagePtr->ncols[k];
+        height = destImagePtr->nrows[k];
+
+        fitscut_message (2, "\tresizing channel to x=%d y=%d from x=%d y=%d\n",
+                         width, height, orig_width, orig_height);
+        bytes = sizeof (float);
+
+        /*  the data pointers...  */
+        x_src_offsets = (int *) malloc (width * bytes);
+        y_src_offsets = (int *) malloc (height * bytes);
+        src  = (float *) calloc (orig_width * bytes, 1);
+        dest = (float *) calloc (width * bytes, 1);
+  
+        /*  pre-calc the scale tables  */
+        for (x = 0; x < width; x++)
+                x_src_offsets [x] = (x * orig_width + orig_width / 2) / width;
+
+        for (y = 0; y < height; y++)
+                y_src_offsets [y] = (y * orig_height + orig_height / 2) / height;
+  
+        /*  do the scaling  */
+        row_bytes = width;
+        last_src_y = -1;
+        for (y = 0; y < height; y++) {
+                /* if the source of this line was the same as the source
+                 *  of the last line, there's no point in re-rescaling.
+                 */
+                if (y_src_offsets[y] != last_src_y) {
+                        image_get_row (srcImagePtr, k, 0, y_src_offsets[y], orig_width, src, 1);
+                        for (x = 0; x < row_bytes ; x++)
+                                dest[x] = src[x_src_offsets[x]];
+
+                        last_src_y = y_src_offsets[y];
+                }
+
+                image_set_row (destImagePtr, k, 0, y, width, dest);
+        }
+        free (x_src_offsets);
+        free (y_src_offsets);
+        free (src);
+        free (dest);
 }
 
 void
-interpolate_image (FitsCutImage *srcImagePtr,
-                   FitsCutImage *destImagePtr, 
-                   int k, int output_size)
+image_get_row (FitsCutImage *PR, 
+	       int         k,
+	       int         x, 
+	       int         y, 
+	       int         w, 
+	       float       *data, 
+	       int         subsample)
 {
-	float *src1;
-	float *dest;
-	int width, height, orig_width, orig_height;
-	int x, y, i, j;
-	double zoom_factor, u, v;
-	/* variables for linear interpolation */
-	/*
-	**	float *src2;
-	**	double wti1, wti2, wtj1, wtj2, zoom_factor, u, v;
-	*/
+        float *linep;
+        float *row;
+        int end;
+        int npixels;
+        int bytespp;
 
-	orig_width = srcImagePtr->ncols[k];
-	orig_height = srcImagePtr->nrows[k];
-	if (orig_width > orig_height) {
-		width = output_size;
-		zoom_factor = ((double) width)/orig_width;
-		height = lround(zoom_factor*orig_height);
-		if (height<1) height = 1;
-	} else {
-		height = output_size;
-		zoom_factor = ((double) height)/orig_height;
-		width = lround(zoom_factor*orig_width);
-		if (width<1) width = 1;
-	}
+        end = x + w;
+        npixels = w;
+        bytespp = sizeof (float);
 
-	destImagePtr->output_zoom[k] = zoom_factor * srcImagePtr->output_zoom[k];
-	destImagePtr->ncols[k] = width;
-	destImagePtr->nrows[k] = height;
-	destImagePtr->data[k] = (float *) malloc (width * height * sizeof (float));
+        row = PR->data[k] + y * PR->ncols[k];
+        while (x < end) {
+                if (subsample == 1) { /* optimize for the common case */
+                        linep = row + x;
+                        memcpy (data, linep, bytespp * npixels);
+                        data += npixels;
+                        x += npixels;
+                }
+        }
+}
 
-	fitscut_message (2, "\tresizing channel to x=%d y=%d from x=%d y=%d\n",
-					 width, height, orig_width, orig_height);
+void
+image_set_row (FitsCutImage *PR, 
+	       int         k,
+	       int         x, 
+	       int         y, 
+	       int         w, 
+	       float       *data)
+{
+        float *linep;
+        float *row;
+        int end;
+        int npixels;
+        int bytespp;
 
-	/* nearest neighbor interpolation */
-	for (y=0; y<height; y++) {
-		v = (y+0.5)/zoom_factor - 0.5;
-		j = lround(v);
-		dest = destImagePtr->data[k] + y*width;
-		src1 = srcImagePtr->data[k] + j*orig_width;
-		for (x=0; x<width; x++) {
-			u = (x+0.5)/zoom_factor - 0.5;
-			i = lround(u);
-			dest[x] = src1[i];
-		}
-	}
+        end = x + w;
+        npixels = w;
+        bytespp = sizeof (float);
 
-	/* linear interpolation (would need bad pixel checks for this) */
-/***
-	for (y=0; y<height; y++) {
-		v = (y+0.5)/zoom_factor - 0.5;
-		j = (int) v;
-		wtj2 = v-j;
-		wtj1 = 1.0-wtj2;
-		dest = destImagePtr->data[k] + y*width;
-		src1 = srcImagePtr->data[k] + j*orig_width;
-		src2 = src1 + orig_width;
-		for (x=0; x<width; x++) {
-			u = (x+0.5)/zoom_factor - 0.5;
-			i = (int) u;
-			wti2 = u-i;
-			wti1 = 1.0-wti2;
-			dest[x] = wtj1*(wti1*src1[i]+wti2*src1[i+1]) + wtj2*(wti1*src2[i]+wti2*src2[i+1]);
-		}
-	}
-***/
-
+        row = PR->data[k] + y * PR->ncols[k];
+        while (x < end) {
+                linep = row + x;
+                memcpy (linep, data, bytespp * npixels);
+                data += npixels;
+                x += npixels;
+        }
+ 
 }
