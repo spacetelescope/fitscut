@@ -52,71 +52,48 @@ extern char *malloc ();
 #define DMALLOC_FUNC_CHECK 1
 #endif
 
-/*
-** returns a (length+1) bin histogram with one bin for objects below dmin, length-1 bins for objects
-** between dmin and dmax, and one bin for objects above dmax
-**/
-
 float *
-compute_histogram (float *arrayp, int length, double dmin, double dmax, long npix, float bad_data_value, long *pixcount, float *inmin, float *inmax)
+compute_histogram (float *arrayp, int length, float dmin, float dmax, long nrows, long ncols)
 {
         float *hist;
-        double binsize;
-        long   i, ind;
+        float  binsize;
+        float *src;
+        long   y, x, ind;
         float  value;
-        float  fmin, fmax;
-        long   lpixcount;
 
         /* allocate histogram */
         hist = (float*) malloc (sizeof (float) * (length + 1));
 
         /* Initialize histogram */
-        for (i = 0; i <= length; i++)
-                hist[i] = 0;
-
+        for (x = 0; x < length; x++)
+                hist[x] = 0;
+  
         /* Build histogram */
         fitscut_message (3, "\tbuilding histogram...\n");
-
-        binsize = (dmax - dmin) / (length - 1);
-        fitscut_message (4, "\tdmax: %lf dmin: %lf length: %d binsize: %lf npix: %ld...\n",
-                         dmax, dmin, length, binsize, npix);
-
-        lpixcount = 0;
-        fmin = FLT_MAX;
-        fmax = -FLT_MAX;
-        for (i = 0; i < npix; i++) {
-            value = arrayp[i];
-            /* exclude blanked values */
-            if (finite(value) && (value != bad_data_value)) {
-                if (value < dmin) {
-                    ind = 0;
-                } else if (value > dmax) {
-                    ind = length-1;
-                } else {
-                    ind = ceil ((value-dmin) / binsize);
-                    if (value > fmax) fmax = value;
-                    if (value < fmin) fmin = value;
+  
+        binsize = (dmax - dmin) / (length - 1.0);
+        fitscut_message (4, "\tdmax: %f dmin: %f length: %d binsize: %f ncols: %ld nrows: %ld...\n",
+                         dmax, dmin, length, binsize, ncols, nrows);
+  
+        for (y = 0; y < nrows; y++) {
+                for (x = 0; x < ncols; x++) {
+                        src = arrayp + y*ncols + x;
+                        value = *src;
+                        if (value < dmin)
+                                ind = 0;
+                        else if (value > dmax)
+                                ind = length-1;
+                        else
+                                ind = ceil ((value-dmin) / binsize);
+                        hist[ind] += 1.0;
                 }
-                hist[ind] += 1.0;
-                lpixcount++;
-            }
         }
-        /* return total number of pixels excluding blanks in pixcount */
-        *pixcount = lpixcount;
-        /* return min/max range for pixels within histogram bounds to allow refinement */
-        if (fmin > fmax) {
-            /* no pixels in bounds */
-            *inmin = 0.5*(dmin+dmax);
-            *inmax = *inmin;
-        } else {
-            *inmin = fmin;
-            *inmax = fmax;
-        }
+
         return (hist);
 }
 
 unsigned char *
-eq_histogram (float *hist, int length, long npix)
+eq_histogram (float *hist, int length, long width, long height)
 {
         int i, j;
         int *part;
@@ -131,7 +108,7 @@ eq_histogram (float *hist, int length, long npix)
         lut = (unsigned char*) malloc (sizeof (unsigned char) * (length + 1));
 
         /* Find partition points */
-        pixels_per_value = ((double) npix) / 256.0;
+        pixels_per_value = (double) (width * height) / 256.0;
 
         /* First and last points in partition */
         part[0] = 0;

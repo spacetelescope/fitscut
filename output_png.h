@@ -1,5 +1,5 @@
-/* declarations for blurb.c
- * 
+/* declarations for output_png.c
+ * Copyright (C) 2002 William Jon McCann
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,10 +15,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *
+ * $Id: output_png.h,v 1.6 2004/04/21 20:13:10 mccannwj Exp $
  */
 
-#define BLURB_BUFFER_INIT 2048
+int write_to_png (FitsCutImage *);
 
-void blurb_error (char *);
-char *blurb_read (char *);

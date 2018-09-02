@@ -77,13 +77,7 @@ ImageSetPixel (FitsCutImage *Image, int channel, int x, int y, float value)
 
         arrayp = Image->data[channel];
 
-        if (arrayp[ncols * y + x] < value/2) {
-            /* line is normally light over dark background */
-            arrayp[ncols * y + x] = value;
-        } else {
-            /* line is black over light background */
-            arrayp[ncols * y + x] = 0.0;
-        }
+        arrayp[ncols * y + x] = value;
 }
 
 static int
@@ -205,7 +199,7 @@ draw_line (FitsCutImage *Image, int channel, int x1, int y1, int x2, int y2, int
                                 }
                                 ImageSetPixel (Image, channel, x, y, value);
                         }
-                }
+                }		
         } else {
                 d = 2 * dx - dy;
                 incr1 = 2 * dx;
@@ -350,14 +344,17 @@ draw_wcs_compass (FitsCutImage *Image, float north_pa, float east_pa)
         float arrow_length;
         long center[2];
         int channel = 0;
+        int draw_channels;
         float east_size_factor = 0.6;
         float line_value = 255;
         float arrow_size_factor;
         int thickness;
         int tip_size;
         int min_size;
+        center[0] = Image->ncols[0] * 0.8;
+        center[1] = Image->nrows[0] * 0.8;
 
-        min_size = (Image->ncolsref > Image->nrowsref) ? Image->nrowsref : Image->ncolsref;
+        min_size = (Image->ncols[0] > Image->nrows[0]) ? Image->nrows[0] : Image->ncols[0];
 
         if (min_size > 1024)
                 arrow_size_factor = 0.05;
@@ -370,9 +367,6 @@ draw_wcs_compass (FitsCutImage *Image, float north_pa, float east_pa)
 
         arrow_length = arrow_size_factor * min_size;
 
-        center[0] = Image->ncolsref - arrow_length - 2;
-        center[1] = Image->nrowsref - arrow_length - 2;
-
         thickness = 2; /*floor(arrow_length * 0.05 + 0.5);*/
         if (thickness < 1)
                 thickness = 1;
@@ -382,63 +376,14 @@ draw_wcs_compass (FitsCutImage *Image, float north_pa, float east_pa)
 
         tip_size = floor (arrow_length * 0.2 + 0.5);
 
-        for (channel = 0; channel < Image->channels; channel++) {
-            if (Image->data[channel] != NULL) {
+        draw_channels = (Image->channels > 1) ? 2 : 1;
+        for (channel = 0; channel < draw_channels; channel++) {
                 /* draw north line */
                 draw_arrow (Image, channel, center[0], center[1], north_pa,
                             arrow_length, thickness, tip_size, line_value);
-
+    
                 /* draw east line */
                 draw_arrow (Image, channel, center[0], center[1], east_pa,
                             arrow_length * east_size_factor, thickness, tip_size, line_value);
-            }
-        }
-}
-
-/* draw crosshair marker around center of image */
-
-void
-draw_center_marker (FitsCutImage *Image)
-{
-        long xcenter, ycenter, insidegap, outsidegap;
-        int channel = 0;
-        float line_value = 255;
-        int min_size;
-
-        xcenter = Image->ncolsref / 2;
-        ycenter = Image->nrowsref / 2;
-        min_size = (Image->ncolsref > Image->nrowsref) ? Image->nrowsref : Image->ncolsref;
-
-        if (min_size < 30) {
-            /* no room for marker */
-            fitscut_message (1, "no room for center marker in %d x %d pixel image\n",
-                         Image->ncolsref, Image->nrowsref);
-            return;
-        } else if (min_size < 60) {
-            insidegap = 5;
-            outsidegap = 5;
-        } else if (min_size < 100) {
-            insidegap = 10;
-            outsidegap = 10;
-        } else if (min_size < 200) {
-            insidegap = 10;
-            outsidegap = 20;
-        } else if (min_size < 300) {
-            insidegap = 20;
-            outsidegap = 40;
-        } else {
-            insidegap = 30;
-            outsidegap = 60;
-        }
-
-        fitscut_message (1, "drawing center marker with inside gap %d outside gap %d\n",
-                         insidegap, outsidegap);
-        for (channel = 0; channel < Image->channels; channel++) {
-            if (Image->data[channel] != NULL) {
-                draw_line (Image, channel, outsidegap, ycenter, xcenter-insidegap, ycenter, line_value);
-                draw_line (Image, channel, xcenter+insidegap, ycenter, Image->ncolsref-outsidegap, ycenter, line_value);
-                draw_line (Image, channel, xcenter, outsidegap, xcenter, ycenter-insidegap, line_value);
-                draw_line (Image, channel, xcenter, ycenter+insidegap, xcenter, Image->nrowsref-outsidegap, line_value);
-            }
         }
 }

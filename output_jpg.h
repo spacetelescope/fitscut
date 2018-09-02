@@ -1,4 +1,5 @@
-/* declarations for write_range.c
+/* declarations for output_jpg.c
+ * Copyright (C) 2002 William Jon McCann
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,6 +14,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ * $Id: output_jpg.h,v 1.2 2004/04/21 20:13:10 mccannwj Exp $
  */
 
-int write_range(FitsCutImage *);
+int write_to_jpg (FitsCutImage *);

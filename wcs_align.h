@@ -19,15 +19,10 @@
  */
 
 void   wcs_initialize_channel  (FitsCutImage *, int);
+void   wcs_align_first_channel (FitsCutImage *, int);
 
 void   wcs_initialize    (FitsCutImage *);
-void   wcs_initialize_ref(FitsCutImage *, long *naxes);
-void   wcs_align_ref     (FitsCutImage *);
-int    wcs_remap_channel (FitsCutImage *, int);
-void   wcs_update        (FitsCutImage *);
-int    wcs_match_channel (FitsCutImage *, int);
-void   wcs_update_channel(FitsCutImage *, int);
-void   wcs_update_ref    (FitsCutImage *);
-
-void   wcs_apply_update   (struct WorldCoor *, double, double, double, int, int);
-struct WorldCoor *wcs_read(char *filename, long *naxes);
+void   wcs_align_first   (FitsCutImage *);
+int    wcs_remap_channel (FitsCutImage *, struct WorldCoor *, int);
+double getpix (char *, int, int, int, double, double, int, int);
+void   addpix (char *, int, int, int, double, double, int, int, double);

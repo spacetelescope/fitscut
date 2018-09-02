@@ -15,8 +15,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * $Id: revision.h,v 1.30 2004/07/27 22:14:20 mccannwj Exp $
+ * $Id: revision.h,v 1.32 2006/10/31 20:44:30 mccannwj Exp $
  */
 
-#define REVDATE "Tue Jul 27 18:12:34 EDT 2004"
+#define REVDATE "Tue Oct 31 16:43:46 EST 2006"
 

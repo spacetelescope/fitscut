@@ -1,4 +1,4 @@
-dnl $Id: configure.in,v 1.8 2004/07/27 22:14:20 mccannwj Exp $
+dnl $Id: configure.in,v 1.10 2006/10/31 20:44:30 mccannwj Exp $
 dnl Process this file with autoconf to produce a configure script.
 
 AC_DEFUN([COMPILE_WARNINGS],[
@@ -87,7 +87,7 @@ AC_DEFUN([COMPILE_WARNINGS],[
 AC_INIT(fitscut.c)
 
 AM_CONFIG_HEADER(config.h)
-AM_INIT_AUTOMAKE(fitscut,1.4.2)
+AM_INIT_AUTOMAKE(fitscut,1.4.4)
 
 dnl Checks for programs.
 AC_PROG_CC
@@ -128,8 +128,6 @@ if test "x$have_libwcs" = "xyes"; then
    AC_DEFINE([HAVE_LIBWCS], 1, [Defined when libwcs is detected])
    WCS_LIBS="-lwcs"
    AC_SUBST(WCS_LIBS)
-else
-   AC_MSG_ERROR([libwcs is required to build fitscut])
 fi
 
 COMPILE_WARNINGS(yes)
