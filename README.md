@@ -12,7 +12,7 @@ Information on the FITS file format is available from
 http://fits.gsfc.nasa.gov/.
 
 
-A cgi interface to fiscut is available here: https://hla.stsci.edu/fitscutcgi_interface.html
+A cgi interface to fitscut is available here: https://hla.stsci.edu/fitscutcgi_interface.html
 
 Dependencies
 ============
