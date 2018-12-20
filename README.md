@@ -12,7 +12,7 @@ Information on the FITS file format is available from
 http://fits.gsfc.nasa.gov/.
 
 
-A cgi interface to fiscut is avilable here: https://hla.stsci.edu/fitscutcgi_interface.html
+A cgi interface to fiscut is available here: https://hla.stsci.edu/fitscutcgi_interface.html
 
 Dependencies
 ============
@@ -20,19 +20,17 @@ Dependencies
 In order to build fitscut you will need:
 
 - CFITSIO library  
-...<http://heasarc.gsfc.nasa.gov/docs/software/fitsio/fitsio.html>
+<http://heasarc.gsfc.nasa.gov/docs/software/fitsio/fitsio.html>
 
 - LIBPNG
-...<http://www.libpng.org/pub/png/libpng.html>
+<http://www.libpng.org/pub/png/libpng.html>
 
 - JPEG library
-...<http://www.ijg.org/>
+<http://www.ijg.org/>
 
 - WCS Subroutine library
-
-...<http://tdc-www.harvard.edu/software/wcstools/>
-
-...(The WCS library was originally optional but is required in this version of fitscut.)
+<http://tdc-www.harvard.edu/software/wcstools/>
+(The WCS library was originally optional but is required in this version of fitscut.)
     
 
 Supported Platforms
