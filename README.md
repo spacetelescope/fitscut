@@ -19,19 +19,18 @@ Dependencies
 
 In order to build fitscut you will need:
 
-  CFITSIO library  
-    <http://heasarc.gsfc.nasa.gov/docs/software/fitsio/fitsio.html>
+- CFITSIO library  
+...<http://heasarc.gsfc.nasa.gov/docs/software/fitsio/fitsio.html>
 
-  LIBPNG
-    <http://www.libpng.org/pub/png/libpng.html>
+- LIBPNG
+...<http://www.libpng.org/pub/png/libpng.html>
 
-  JPEG library
-    <http://www.ijg.org/>
+- JPEG library
+...<http://www.ijg.org/>
 
-And optionally:
-
-  WCS Subroutine library
-    <ftp://cfa-ftp.harvard.edu/pub/gsc/WCSTools/>
+- WCS Subroutine library
+...<ftp://cfa-ftp.harvard.edu/pub/gsc/WCSTools/>
+...(The WCS library was originally optional but is required in this version of fitscut.)
     
 
 Supported Platforms
@@ -39,12 +38,10 @@ Supported Platforms
 
 fitscut has been tested and is known to work on:
 
-```
-  RedHat Linux 8, 9
-  RedHat Enterprise Linux 3
-  Fedora Core 1
-  Solaris 8, 9
-```
+- RedHat Linux 8, 9
+- RedHat Enterprise Linux 3
+- Fedora Core 1
+- Solaris 8, 9
 
 Installation
 ============
