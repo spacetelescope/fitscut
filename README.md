@@ -29,7 +29,9 @@ In order to build fitscut you will need:
 ...<http://www.ijg.org/>
 
 - WCS Subroutine library
-...<ftp://cfa-ftp.harvard.edu/pub/gsc/WCSTools/>
+
+...<http://tdc-www.harvard.edu/software/wcstools/>
+
 ...(The WCS library was originally optional but is required in this version of fitscut.)
     
 
