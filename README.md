@@ -19,17 +19,13 @@ Dependencies
 
 In order to build fitscut you will need:
 
-- CFITSIO library\
-<http://heasarc.gsfc.nasa.gov/docs/software/fitsio/fitsio.html>
+- CFITSIO library: <http://heasarc.gsfc.nasa.gov/docs/software/fitsio/fitsio.html>
 
-- LIBPNG\
-<http://www.libpng.org/pub/png/libpng.html>
+- LIBPNG: <http://www.libpng.org/pub/png/libpng.html>
 
-- JPEG library\
-<http://www.ijg.org/>
+- JPEG library: <http://www.ijg.org/>
 
-- WCS Subroutine library\
-<http://tdc-www.harvard.edu/software/wcstools/>\
+- WCS Subroutine library: <http://tdc-www.harvard.edu/software/wcstools/>\
 (The WCS library was originally optional but is required in this version of fitscut.)
 
 Supported Platforms
@@ -41,6 +37,7 @@ RedHat Linux 8, 9\
 RedHat Enterprise Linux 3\
 Fedora Core 1\
 Solaris 8, 9
+MacOS 10.12 (and other OSX versions)
 
 Installation
 ============
@@ -50,13 +47,17 @@ Please see the INSTALL file.
 This usually consists of:
 
 ```
-  % gzip -cd fitscut-1.4.0.tar.gz | tar xvf -     # unpack the sources
+  % tar xzvf fitscut-1.4.0.tar.gz                 # unpack the sources
   % cd fitscut-1.4.0                              # change to the directory
   % ./configure                                   # run the 'configure' script
   % make                                          # build fitscut
   [ Become root if necessary ]
   % make install                                  # install fitscut
 ```
+
+The usual configure options are available (e.g., `--prefix=/your/install/location` to specify where the binary executable should be installed).
+You can define the `CFLAGS` and `LDFLAGS` environment variables to specify the locations of include files and libraries before running
+`./configure`.
 
 -----
 Copyright (C) 2001 William Jon McCann
