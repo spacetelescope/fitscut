@@ -51,13 +51,14 @@ Please see the INSTALL file.
 
 This usually consists of:
 
+```csh
   % gzip -cd fitscut-1.4.0.tar.gz | tar xvf -     # unpack the sources
   % cd fitscut-1.4.0                              # change to the directory
   % ./configure                                   # run the 'configure' script
   % make                                          # build fitscut
   [ Become root if necessary ]
   % make install                                  # install fitscut
-
+```
 
 -----
 Copyright (C) 2001 William Jon McCann
