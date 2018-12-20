@@ -39,10 +39,12 @@ Supported Platforms
 
 fitscut has been tested and is known to work on:
 
+```
   RedHat Linux 8, 9
   RedHat Enterprise Linux 3
   Fedora Core 1
   Solaris 8, 9
+```
 
 Installation
 ============
@@ -51,7 +53,7 @@ Please see the INSTALL file.
 
 This usually consists of:
 
-```csh
+```
   % gzip -cd fitscut-1.4.0.tar.gz | tar xvf -     # unpack the sources
   % cd fitscut-1.4.0                              # change to the directory
   % ./configure                                   # run the 'configure' script
