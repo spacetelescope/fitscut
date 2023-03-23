@@ -187,7 +187,6 @@ int
 wcs_remap_channel (FitsCutImage *Image, int channel)
 {
         struct WorldCoor *wcs_in, *wcs_out;
-        int wpin, hpin;
         int offscl;
         int iin, iout, jin, jout;
         int iout1, iout2, jout1, jout2;
@@ -223,8 +222,6 @@ wcs_remap_channel (FitsCutImage *Image, int channel)
         /* Set input WCS output coordinate system to output coordinate system */
         wcs_in->sysout = wcs_out->syswcs;
         strcpy (wcs_in->radecout, wcs_out->radecsys);
-        wpin = wcs_in->nxpix;
-        hpin = wcs_in->nypix;
 
         /* Set output WCS output coordinate system to input coordinate system */
         wcs_out->sysout = wcs_in->syswcs;
@@ -343,10 +340,12 @@ wcs_match_channel (FitsCutImage *Image, int channel)
         pix2pix(wcs_ref, x1, y1, wcs_chan, &xout, &yout, &offscl);
         if (xout < xmin) { xmin = xout; } else if (xout > xmax) { xmax = xout; }
         if (yout < ymin) { ymin = yout; } else if (yout > ymax) { ymax = yout; }
-        iout1 = (int) ceil(ymin);
-        iout2 = (int) floor(ymax);
-        jout1 = (int) ceil(xmin);
-        jout2 = (int) floor(xmax);
+
+        /* make sure the image section is big enough to cover the region */
+        iout1 = (int) floor(ymin);
+        iout2 = (int) ceil(ymax);
+        jout1 = (int) floor(xmin);
+        jout2 = (int) ceil(xmax);
 
         fitscut_message (3, "REMAP: Channel %d Output x: %d-%d, y: %d-%d\n",
                          channel, jout1, jout2, iout1, iout2);
@@ -410,8 +409,8 @@ wcs_apply_update (struct WorldCoor *wcs, double x0, double y0, double zoom, int 
         wcs->y_pixel_offset = -zoom*(wcs->y_pixel_offset - y0);
         wcs->x_pixel_size = wcs->x_pixel_size/zoom;
         wcs->y_pixel_size = wcs->y_pixel_size/zoom;
-		wcs->crpix[0] = crpix1;
-		wcs->crpix[1] = crpix2;
+        wcs->crpix[0] = crpix1;
+        wcs->crpix[1] = crpix2;
     } else {
         wcsreset(wcs, crpix1, crpix2, crval1, crval2, cdelt1, cdelt2, crota, cdptr);
     }
