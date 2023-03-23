@@ -367,12 +367,13 @@ static void
 jpg_add_header_info(FitsCutImage *Image, GraphicsInfo *info)
 {
     struct jpeg_compress_struct *cinfo_ptr = &(info->jpeg_info);
-    char output_text[11*80];
+    char output_text[15*80];
 	/* initialize these to eliminate compiler warnings */
-    double crval1=0, crval2=0, crpix1=0, crpix2=0, cd1_1=1, cd1_2=0, cd2_1=0, cd2_2=1, cdelt1=1, cdelt2=1, crota2=0, zoom=1;
+    double crval1=0, crval2=0, crpix1=0, crpix2=0, cd1_1=1, cd1_2=0, cd2_1=0, cd2_2=1,
+		cdelt1=1, cdelt2=1, crota2=0, pc1_1=0, pc1_2=0, pc2_1=0, pc2_2=0, zoom=1;
     char ctype1[FLEN_VALUE], ctype2[FLEN_VALUE];
     /* counts for various classes of keywords */
-    int crcount = 0, cdcount = 0, delcount = 0, rotcount = 0;
+    int crcount = 0, cdcount = 0, delcount = 0, rotcount = 0, pccount=0;
 
     int status = 0;
     char *header, keyname[FLEN_KEYWORD];
@@ -422,6 +423,22 @@ jpg_add_header_info(FitsCutImage *Image, GraphicsInfo *info)
                 fits_parse_value (card, value_string, comment, &status);
                 cd2_2 = strtod (value_string, (char **)NULL);
                 cdcount += 1;
+            } else if (strequ (keyname, "PC001001") || strequ(keyname, "PC1_1")) {
+                fits_parse_value (card, value_string, comment, &status);
+                pc1_1 = strtod (value_string, (char **)NULL);
+                pccount += 1;
+            } else if (strequ (keyname, "PC001002") || strequ(keyname, "PC1_2")) {
+                fits_parse_value (card, value_string, comment, &status);
+                pc1_2 = strtod (value_string, (char **)NULL);
+                pccount += 1;
+            } else if (strequ (keyname, "PC002001") || strequ(keyname, "PC2_1")) {
+                fits_parse_value (card, value_string, comment, &status);
+                pc2_1 = strtod (value_string, (char **)NULL);
+                pccount += 1;
+            } else if (strequ (keyname, "PC002002") || strequ(keyname, "PC2_2")) {
+                fits_parse_value (card, value_string, comment, &status);
+                pc2_2 = strtod (value_string, (char **)NULL);
+                pccount += 1;
             } else if (strequ (keyname, "CDELT1")) {
                 fits_parse_value (card, value_string, comment, &status);
                 cdelt1 = strtod (value_string, (char **)NULL);
@@ -449,8 +466,8 @@ jpg_add_header_info(FitsCutImage *Image, GraphicsInfo *info)
 
     /* update WCS info */
 
-    fitscut_message (3, "\tWCS counts: crval/pix/type %d cd1_1 %d cdelt %d rota %d\n",
-		   crcount, cdcount, delcount, rotcount);
+    fitscut_message (3, "\tWCS counts: crval/pix/type %d cd1_1 %d pc1_1 %d cdelt %d rota %d\n",
+		   crcount, cdcount, pccount, delcount, rotcount);
     if (crcount == 6 && (cdcount == 4 || delcount == 2)) {
         zoom = Image->output_zoom[0];
 		if (zoom == 0.0) zoom = 1.0;
@@ -483,20 +500,41 @@ jpg_add_header_info(FitsCutImage *Image, GraphicsInfo *info)
             cdelt2 = cdelt2/zoom;
 		   	/* CROTA2 is optional */
 			if (rotcount == 0) crota2 = 0.0;
-            sprintf(output_text,
-                "CTYPE1  = %s\n"
-                "CTYPE2  = %s\n"
-                "CRPIX1  = %.15g\n"
-                "CRPIX2  = %.15g\n"
-                "CRVAL1  = %.15g\n"
-                "CRVAL2  = %.15g\n"
-                "CDELT1  = %.15g\n"
-                "CDELT2  = %.15g\n"
-                "CROTA2  = %.15g\n"
-                "COMMENT Created by fitscut %s (William Jon McCann)\n",
-                ctype1, ctype2, crpix1, crpix2, crval1, crval2,
-                cdelt1, cdelt2, crota2, VERSION);
-			fitscut_message (2, "\tAdded CDELT1 format WCS to JPEG comment\n");
+			if (pccount == 4) {
+				sprintf(output_text,
+					"CTYPE1  = %s\n"
+					"CTYPE2  = %s\n"
+					"CRPIX1  = %.15g\n"
+					"CRPIX2  = %.15g\n"
+					"CRVAL1  = %.15g\n"
+					"CRVAL2  = %.15g\n"
+					"CDELT1  = %.15g\n"
+					"CDELT2  = %.15g\n"
+					"CROTA2  = %.15g\n"
+					"PC1_1   = %.15g\n"
+					"PC1_2   = %.15g\n"
+					"PC2_1   = %.15g\n"
+					"PC2_2   = %.15g\n"
+					"COMMENT Created by fitscut %s (William Jon McCann)\n",
+					ctype1, ctype2, crpix1, crpix2, crval1, crval2,
+					cdelt1, cdelt2, crota2, pc1_1, pc1_2, pc2_1, pc2_2, VERSION);
+				fitscut_message (2, "\tAdded PC/CDELT1 format WCS to JPEG comment\n");
+			} else {
+				sprintf(output_text,
+					"CTYPE1  = %s\n"
+					"CTYPE2  = %s\n"
+					"CRPIX1  = %.15g\n"
+					"CRPIX2  = %.15g\n"
+					"CRVAL1  = %.15g\n"
+					"CRVAL2  = %.15g\n"
+					"CDELT1  = %.15g\n"
+					"CDELT2  = %.15g\n"
+					"CROTA2  = %.15g\n"
+					"COMMENT Created by fitscut %s (William Jon McCann)\n",
+					ctype1, ctype2, crpix1, crpix2, crval1, crval2,
+					cdelt1, cdelt2, crota2, VERSION);
+				fitscut_message (2, "\tAdded CDELT1 format WCS to JPEG comment\n");
+			}
         }
     } else {
         /* no WCS found, so just add the comment */

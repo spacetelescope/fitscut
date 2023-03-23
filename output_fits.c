@@ -242,6 +242,26 @@ fitscut_clean_header(fitsfile *fptr, FitsCutImage *Image, int *status) {
     if (*status) printerror (*status);
 }
 
+
+/* return true if the keyword exists in the header */
+static int
+header_has_key(fitsfile *fptr, char *keyname, int *status)
+{
+char value[81];
+
+    if (*status == 0) {
+        fits_read_keyword(fptr, keyname, value, NULL, status);
+        if (*status == VALUE_UNDEFINED || *status == KEY_NO_EXIST) {
+            *status = 0;
+            return 0; /* no such keyword */
+        } else if (*status == 0) {
+            return 1; /* keyword found */
+        }
+    }
+    /* error in status */
+    return 0;
+}
+
 void
 write_to_fits(FitsCutImage *Image)
 {
@@ -338,6 +358,28 @@ write_to_fits(FitsCutImage *Image)
             fits_update_key(fptr, TDOUBLE, "CRPIX1", &crpix,
                 "Reference pixel shifted for cutout", &status);
             fitscut_message  (2, "\tUpdated CRPIX1 to %f\n", crpix);
+            /*
+             * add RADESYS keyword if it is missing (for PS1 images)
+             * only do this if both RADESYS and EQUINOX are missing and the
+             * image has the old PC001001 keyword
+             */
+            if (status == 0) {
+                if ((! header_has_key(fptr, "RADESYS", &status))
+                  & (! header_has_key(fptr, "EQUINOX", &status))
+                  & header_has_key(fptr, "PC001001", &status) ) {
+                    /* keyword not found, add it */
+                    if (fits_write_key(fptr, TSTRING, "RADESYS", "FK5", "added by fitscut", &status))
+                        printerror (status);
+                    fitscut_message  (2, "\tAdded RADESYS keyword\n");
+                    /* also add the TIMESYS keyword for PS1 images (which are the source of the RADESYS problem) */
+                    if (! header_has_key(fptr, "TIMESYS", &status)) {
+                        /* keyword not found, add it */
+                        if (fits_write_key(fptr, TSTRING, "TIMESYS", "TAI", "added by fitscut", &status))
+                            printerror (status);
+                        fitscut_message  (2, "\tAdded TIMESYS keyword\n");
+                    }
+                }
+            }
         } else if (status == VALUE_UNDEFINED || status == KEY_NO_EXIST) {
             /* no CRPIX, so skip updating WCS */
             fitscut_message  (2, "\tNo CRPIX1 found, header not updated\n");

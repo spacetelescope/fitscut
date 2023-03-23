@@ -646,7 +646,15 @@ extract_fits (FitsCutImage *Image)
 
         /* determine zoomed image size */
 
-        if (Image->output_zoom[k] > 0) {
+        if (Image->output_alignment == ALIGN_REF) {
+            /* estimate zoom factor based on image region and output sizes */
+            zoom_factor = ((float) Image->nrowsref)/((float) nrows);
+            if (zoom_factor > 1) {
+                zoom_factor = 1.0;
+            } else {
+                zoom_factor = 1.0/lround(1.0/zoom_factor);
+            }
+        } else if (Image->output_zoom[k] > 0) {
             zoom_factor = Image->output_zoom[k];
         }
         else {
@@ -658,6 +666,7 @@ extract_fits (FitsCutImage *Image)
         get_zoom_size_channel (ncols, nrows, zoom_factor, Image->output_size,
             &pixfac, &zoomcols, &zoomrows, &doshrink);
         fitscut_message (1, "\tZoomed output size is %d x %d\n", zoomcols, zoomrows);
+        fitscut_message(2, "\tpixfac = %d\n", pixfac);
 
         /* CFITSIO starts indexing at 1 */
         x0 += 1;
@@ -731,6 +740,7 @@ extract_fits (FitsCutImage *Image)
                  zoomcols, zoomrows);
         arrayptr = cutout_alloc (zoomcols, zoomrows, NAN);
 
+        nbad = 0;
         if (cols_read > 0 && rows_read > 0) {
             if (pixfac > 1) {
                 fitscut_message (2, "\tAllocating space for %d x %d buffer\n",
@@ -845,7 +855,7 @@ extract_fits (FitsCutImage *Image)
             Image->output_zoom[k] = 1.0;
         }
 
-        if (pixfac > 1) {
+        if (pixfac > 1 && cols_read > 0 && rows_read > 0) {
             free(bufferptr);
         }
 
